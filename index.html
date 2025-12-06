@@ -85,7 +85,7 @@
         // --- CONSTANTS & DATA (COPENHAGUE 2026) ---
         const SHIP_DEPARTURE_TIME = "18:00";
         const SHIP_ONBOARD_TIME = "17:45"; // Todos a bordo
-        const STORAGE_KEY = 'cph_guide_final_v4'; // Key updated
+        const STORAGE_KEY = 'cph_guide_final_v5'; // Key updated
         
         // Coordenadas
         const COORDS = {
@@ -264,6 +264,14 @@
 
         // --- COMPONENTS ---
 
+        // Shared Footer
+        const SharedFooter = () => (
+             <div className="mt-8 mb-6 text-center text-xs text-slate-400 pb-4">
+                <p>ACTUALIZADO EL 06/12/25</p>
+                <p>© 2025- 2026 Gonzalo Arenas de la Hoz</p>
+            </div>
+        );
+
         // 1. TIMELINE
         const Timeline = ({ itinerary, onToggleComplete, onLocate, userLocation }) => {
             const now = new Date();
@@ -408,6 +416,8 @@
                             );
                         })}
                     </div>
+
+                    <SharedFooter />
 
                     {/* Modal Detalle */}
                     {selectedActivity && (
@@ -579,6 +589,8 @@
                         </div>
                         <button onClick={addExpense} className="w-full bg-slate-200 text-slate-700 font-bold py-2 rounded text-sm hover:bg-slate-300">Añadir</button>
                     </div>
+
+                    <SharedFooter />
                 </div>
             );
         };
@@ -788,10 +800,7 @@
                         ))}
                     </div>
 
-                     <div className="mt-8 text-center text-xs text-slate-400 pb-4">
-                        <p>Actualizado: 10/05/2026</p>
-                        <p>© 2026 Gonzalo Arenas de la Hoz</p>
-                    </div>
+                    <SharedFooter />
                 </div>
             );
         };
