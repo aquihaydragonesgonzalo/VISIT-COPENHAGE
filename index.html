@@ -55,17 +55,17 @@
     <!-- Babel Standalone -->
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 
-    <!-- Import Map -->
+    <!-- Import Map (Cleaned for Chrome Compatibility) -->
     <script type="importmap">
 {
   "imports": {
     "react": "https://esm.sh/react@18.2.0",
     "react-dom/client": "https://esm.sh/react-dom@18.2.0/client",
     "lucide-react": "https://esm.sh/lucide-react@0.263.1",
-    "leaflet": "https://aistudiocdn.com/leaflet@^1.9.4",
-    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.1/",
     "react/": "https://aistudiocdn.com/react@^19.2.1/",
-    "recharts": "https://aistudiocdn.com/recharts@^3.5.1"
+    "leaflet": "https://aistudiocdn.com/leaflet@^1.9.4",
+    "recharts": "https://aistudiocdn.com/recharts@^3.5.1",
+    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.1/"
   }
 }
 </script>
@@ -84,8 +84,8 @@
 
         // --- CONSTANTS & DATA (COPENHAGUE 2026) ---
         const SHIP_DEPARTURE_TIME = "18:00";
-        const SHIP_ONBOARD_TIME = "17:45"; // Todos a bordo
-        const STORAGE_KEY = 'cph_guide_final_v5'; // Key updated
+        const SHIP_ONBOARD_TIME = "17:30"; // Todos a bordo UPDATED
+        const STORAGE_KEY = 'cph_guide_final_v7_fixed'; // Key updated to force refresh
         
         // Coordenadas
         const COORDS = {
@@ -103,18 +103,18 @@
 
         const INITIAL_ITINERARY = [
             {
-                id: '0', title: 'Llegada a Puerto', startTime: '07:00', endTime: '08:00',
-                locationName: 'Oceankaj', coords: COORDS.OCEANKAJ,
-                description: 'Maniobra de atraque y preparación para el desembarque.',
-                keyDetails: 'Disfruta de la entrada al puerto.',
-                priceDKK: 0, priceEUR: 0, type: 'logistics', completed: false
-            },
-            {
                 id: '0b', title: 'Desayuno Buffet', startTime: '07:15', endTime: '07:45',
                 locationName: 'MSC Euribia', coords: COORDS.OCEANKAJ,
                 description: 'Desayuno rápido en Marketplace Buffet.',
                 keyDetails: 'Carga energía para el día.',
                 priceDKK: 0, priceEUR: 0, type: 'food', completed: false
+            },
+            {
+                id: '0', title: 'Llegada a Puerto', startTime: '08:00', endTime: '08:00',
+                locationName: 'Oceankaj', coords: COORDS.OCEANKAJ,
+                description: 'Maniobra de atraque completa.',
+                keyDetails: 'El barco atraca en Oceankaj (Nordhavn).',
+                priceDKK: 0, priceEUR: 0, type: 'logistics', completed: false
             },
             {
                 id: '1', title: 'DESEMBARCO Y SHUTTLE (CITY PASS 24H)', startTime: '08:00', endTime: '08:25',
@@ -205,11 +205,18 @@
                 priceDKK: 0, priceEUR: 0, type: 'logistics', completed: false, notes: 'CRITICAL'
             },
             {
-                id: '11', title: '¡A BORDO! (Límite 17:45)', startTime: '17:30', endTime: '17:45',
+                id: '11', title: '¡A BORDO! (Límite 17:30)', startTime: '17:30', endTime: '17:30',
                 locationName: 'Pasarela Barco', coords: COORDS.OCEANKAJ,
-                description: 'Hora límite absoluta. El barco zarpa a las 18:00.',
+                description: 'Hora límite absoluta. Se retira la pasarela.',
                 keyDetails: 'Todos a bordo.',
                 priceDKK: 0, priceEUR: 0, type: 'logistics', completed: false, notes: 'CRITICAL'
+            },
+            {
+                id: '12', title: 'Salida del Barco', startTime: '18:00', endTime: '18:00',
+                locationName: 'Muelle Oceankaj', coords: COORDS.OCEANKAJ,
+                description: 'El MSC Euribia zarpa hacia el siguiente destino.',
+                keyDetails: '¡Hasta la próxima!',
+                priceDKK: 0, priceEUR: 0, type: 'logistics', completed: false
             }
         ];
 
@@ -559,7 +566,12 @@
                         {paidActivities.map((act) => (
                             <div key={act.id} className="flex justify-between items-center p-4 border-b border-slate-50 last:border-0">
                                 <div className="flex items-center">
-                                    <div className={`w-3 h-3 rounded-full mr-3 ${act.completed ? 'bg-emerald-500' : 'bg-slate-300'}`}></div>
+                                    <div 
+                                        onClick={() => {}} // Could be wired to toggle
+                                        className={`w-4 h-4 rounded-full mr-3 border cursor-pointer flex items-center justify-center ${act.completed ? 'bg-emerald-500 border-emerald-500' : 'bg-white border-slate-300'}`}
+                                    >
+                                        {act.completed && <CheckCircle2 size={12} className="text-white"/>}
+                                    </div>
                                     <p className="text-sm font-medium text-gray-800">{act.title}</p>
                                 </div>
                                 <div className="font-bold text-gray-700">
@@ -900,16 +912,13 @@
                 }
             }, []);
 
-            // Countdown
+            // Countdown Logic
             useEffect(() => {
                 const interval = setInterval(() => {
                     const now = new Date();
-                    const [h, m] = SHIP_ONBOARD_TIME.split(':').map(Number);
-                    const target = new Date();
-                    target.setHours(h, m, 0);
                     
                     // Logic for "Arrival" vs "Departure"
-                    const [arrH, arrM] = "07:00".split(':').map(Number); // Arrival time
+                    const [arrH, arrM] = "08:00".split(':').map(Number); // Arrival time
                     const arrivalTime = new Date();
                     arrivalTime.setHours(arrH, arrM, 0);
 
@@ -919,6 +928,11 @@
                          const mm = Math.floor((diff % 3600000) / 60000);
                          setCountdown(`Llegada en: ${hh}h ${mm}m`);
                     } else {
+                        // Countdown to Onboard Time (17:30)
+                        const [h, m] = SHIP_ONBOARD_TIME.split(':').map(Number);
+                        const target = new Date();
+                        target.setHours(h, m, 0);
+                        
                         const diff = target - now;
                         if(diff < 0) setCountdown("¡A BORDO!");
                         else {
