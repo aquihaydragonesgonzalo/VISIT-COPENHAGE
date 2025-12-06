@@ -1,0 +1,1171 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Copenhague 2026</title>
+    
+    <!-- PWA Meta Tags -->
+    <meta name="theme-color" content="#2A5B87">
+    <meta name="description" content="Guía de escala en Copenhague 2026.">
+    <link rel="manifest" href="./manifest.json">
+    <link rel="apple-touch-icon" href="icon.png">
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        fjord: { 50: '#f0f9ff', 100: '#e0f2fe', 200: '#bae6fd', 300: '#7dd3fc', 400: '#38bdf8', 500: '#0ea5e9', 600: '#0284c7', 700: '#0369a1', 800: '#075985', 900: '#0c4a6e' },
+                        mountain: { 500: '#3A7D44' },
+                        sunset: { 500: '#FFB347' },
+                    },
+                    fontFamily: {
+                        sans: ['Roboto Condensed', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    
+    <!-- Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Roboto+Condensed:wght@300;400;700&display=swap" rel="stylesheet">
+
+    <!-- React & Babel (Global UMD for stability) -->
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <style>
+        body { -webkit-tap-highlight-color: transparent; overscroll-behavior-y: none; }
+        input, textarea { user-select: text; -webkit-user-select: text; }
+        .no-select { user-select: none; -webkit-user-select: none; }
+        .pb-safe { padding-bottom: env(safe-area-inset-bottom); }
+        .snap-x { scroll-snap-type: x mandatory; }
+        .snap-center { scroll-snap-align: center; }
+        
+        /* Custom Scrollbar for horizontal lists */
+        .scrollbar-hide::-webkit-scrollbar { display: none; }
+        .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+
+        @keyframes slideUp {
+            from { transform: translateY(100%); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+        .animate-slide-up { animation: slideUp 0.3s ease-out forwards; }
+    </style>
+<script type="importmap">
+{
+  "imports": {
+    "react": "https://aistudiocdn.com/react@^19.2.1",
+    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.1/",
+    "react/": "https://aistudiocdn.com/react@^19.2.1/",
+    "lucide-react": "https://aistudiocdn.com/lucide-react@^0.556.0",
+    "recharts": "https://aistudiocdn.com/recharts@^3.5.1",
+    "leaflet": "https://aistudiocdn.com/leaflet@^1.9.4"
+  }
+}
+</script>
+</head>
+<body class="bg-slate-50 text-slate-900 overflow-hidden fixed w-full h-full">
+    <div id="root" class="h-full w-full"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useMemo, useRef } = React;
+
+        // --- ICONS (Inline SVG to avoid dependency issues) ---
+        const Icons = {
+            MapPin: ({size=24, className=""}) => <svg width={size} height={size} className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>,
+            Clock: ({size=24, className=""}) => <svg width={size} height={size} className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>,
+            Wallet: ({size=24, className=""}) => <svg width={size} height={size} className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 12V8H6a2 2 0 0 1-2-2c0-1.1.9-2 2-2h12v4"></path><path d="M4 6v12c0 1.1.9 2 2 2h14v-4"></path><path d="M18 12a2 2 0 0 0-2 2c0 1.1.9 2 2 2h2v-4z"></path></svg>,
+            BookOpen: ({size=24, className=""}) => <svg width={size} height={size} className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path></svg>,
+            CheckCircle2: ({size=24, className=""}) => <svg width={size} height={size} className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z"></path><path d="m9 12 2 2 4-4"></path></svg>,
+            Circle: ({size=24, className=""}) => <svg width={size} height={size} className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle></svg>,
+            Anchor: ({size=24, className=""}) => <svg width={size} height={size} className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="5" r="3"></circle><line x1="12" y1="22" x2="12" y2="8"></line><path d="M5 12H2a10 10 0 0 0 20 0h-3"></path></svg>,
+            AlertTriangle: ({size=24, className=""}) => <svg width={size} height={size} className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>,
+            ArrowRight: ({size=24, className=""}) => <svg width={size} height={size} className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>,
+            CalendarClock: ({size=24, className=""}) => <svg width={size} height={size} className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 7.5V6a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h3.5"></path><path d="M16 2v4"></path><path d="M8 2v4"></path><path d="M3 10h18"></path><path d="M18 22a4 4 0 0 0 0-8 4 4 0 0 0 0 8z"></path><path d="M18 16.5V19l1.5 1.5"></path></svg>,
+            MapIcon: ({size=24, className=""}) => <svg width={size} height={size} className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"></polygon><line x1="8" y1="2" x2="8" y2="18"></line><line x1="16" y1="6" x2="16" y2="22"></line></svg>,
+            Volume2: ({size=24, className=""}) => <svg width={size} height={size} className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path></svg>,
+            Camera: ({size=24, className=""}) => <svg width={size} height={size} className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"></path><circle cx="12" cy="13" r="3"></circle></svg>,
+            Ticket: ({size=24, className=""}) => <svg width={size} height={size} className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2Z"></path><path d="M13 5v2"></path><path d="M13 17v2"></path><path d="M13 11v2"></path></svg>,
+            Instagram: ({size=24, className=""}) => <svg width={size} height={size} className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"></path><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"></line></svg>,
+            Sun: ({size=24, className=""}) => <svg width={size} height={size} className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>,
+            Moon: ({size=24, className=""}) => <svg width={size} height={size} className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>,
+            CloudRain: ({size=24, className=""}) => <svg width={size} height={size} className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="16" y1="13" x2="16" y2="21"></line><line x1="8" y1="13" x2="8" y2="21"></line><line x1="12" y1="15" x2="12" y2="23"></line><path d="M20 16.58A5 5 0 0 0 18 7h-1.26A8 8 0 1 0 4 15.25"></path></svg>,
+            Cloud: ({size=24, className=""}) => <svg width={size} height={size} className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"></path></svg>,
+            Repeat: ({size=24, className=""}) => <svg width={size} height={size} className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="17 1 21 5 17 9"></polyline><path d="M3 11V9a4 4 0 0 1 4-4h14"></path><polyline points="7 23 3 19 7 15"></polyline><path d="M21 13v2a4 4 0 0 1-4 4H3"></path></svg>,
+            ArrowDown: ({size=24, className=""}) => <svg width={size} height={size} className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><polyline points="19 12 12 19 5 12"></polyline></svg>,
+            Nav: ({size=24, className=""}) => <svg width={size} height={size} className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="3 11 22 2 13 21 11 13 3 11"></polygon></svg>,
+            AlertCircle: ({size=24, className=""}) => <svg width={size} height={size} className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>,
+            Thermometer: ({size=24, className=""}) => <svg width={size} height={size} className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 14.76V3.5a2.5 2.5 0 0 0-5 0v11.26a4.5 4.5 0 1 0 5 0z"></path></svg>,
+            ShoppingBag: ({size=24, className=""}) => <svg width={size} height={size} className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"></path><line x1="3" y1="6" x2="21" y2="6"></line><path d="M16 10a4 4 0 0 1-8 0"></path></svg>,
+        };
+
+        // --- CONSTANTS ---
+        const SHIP_ARRIVAL_TIME = "08:00";
+        const SHIP_ONBOARD_TIME = "17:30"; 
+        const SHIP_DEPARTURE_TIME = "18:00";
+        const DATE_OF_VISIT = "2026-05-10";
+        const STORAGE_KEY = 'cph_guide_2026_v5_final';
+
+        const COORDS = {
+            OCEANKAJ: { lat: 55.7144, lng: 12.6074 },
+            ORIENTKAJ_METRO: { lat: 55.7155, lng: 12.5977 },
+            OSTERPORT: { lat: 55.6925, lng: 12.5873 },
+            LITTLE_MERMAID: { lat: 55.69286, lng: 12.59928 },
+            KASTELLET: { lat: 55.69116, lng: 12.59422 },
+            NYHAVN: { lat: 55.67954, lng: 12.59103 },
+            AMALIENBORG: { lat: 55.68406, lng: 12.59303 },
+            RUNDETAARN: { lat: 55.68136, lng: 12.57572 },
+            ROSENBORG: { lat: 55.68598, lng: 12.57748 },
+            STROGET: { lat: 55.6793, lng: 12.5785 },
+            NORREPORT: { lat: 55.6830, lng: 12.5714 }
+        };
+
+        const INITIAL_ITINERARY = [
+            {
+                id: '1', title: 'City Pass 24h', startTime: '08:00', endTime: '08:25',
+                locationName: 'Muelle Oceankaj', endLocationName: 'Metro Orientkaj',
+                coords: COORDS.OCEANKAJ, endCoords: COORDS.ORIENTKAJ_METRO,
+                description: 'Desembarque y compra de billete. Usa Bus 164 o Shuttle hasta metro.',
+                fullDescription: 'El barco atraca en Oceankaj. IMPORTANTE: Los domingos el Bus 164 tiene poca frecuencia. Prioridad absoluta llegar al metro.',
+                tips: 'Compra "City Pass Small" (Zonas 1-4). Cubre todo.',
+                keyDetails: '¡CRUCIAL! Conexión rápida al Metro.',
+                priceDKK: 90, priceEUR: 12, type: 'transport', completed: false,
+                googleMapsUrl: 'https://maps.app.goo.gl/wLqhiVC88rwhhuD36',
+                notes: 'CRITICAL'
+            },
+            {
+                id: '2', title: 'Metro M4 a Østerport', startTime: '08:25', endTime: '08:45',
+                locationName: 'Estación Orientkaj', endLocationName: 'Estación Østerport',
+                coords: COORDS.ORIENTKAJ_METRO, endCoords: COORDS.OSTERPORT,
+                description: 'Toma el metro M4 dirección København Syd.',
+                fullDescription: 'En la estación de Oceankaj (Orientkaj), compra billete y toma Metro M4 hasta Østerport (2 paradas).',
+                tips: 'El City Pass cubre Metro y Bus. Ahorra tiempo.',
+                keyDetails: 'Inicio del itinerario a pie.',
+                priceDKK: 0, priceEUR: 0, type: 'transport', completed: false,
+                ticketUrl: 'https://www.copenhague.es/transporte/',
+                googleMapsUrl: 'https://maps.app.goo.gl/6Lg1wpRueLWpruYe7'
+            },
+            {
+                id: '3', title: 'La Sirenita y Kastellet', startTime: '08:45', endTime: '09:45',
+                locationName: 'Østerport', endLocationName: 'La Sirenita',
+                coords: COORDS.OSTERPORT, endCoords: COORDS.LITTLE_MERMAID,
+                description: 'El icono de Copenhague y la ciudadela militar.',
+                fullDescription: 'Camina desde Østerport hasta la Sirenita (Den Lille Havfrue). Luego cruza la ciudadela de Kastellet.',
+                tips: 'Foto: No te subas a la roca si está mojada. Cuidado con la multitud.',
+                keyDetails: 'Punto foto obligatorio.',
+                priceDKK: 0, priceEUR: 0, type: 'sightseeing', completed: false,
+                googleMapsUrl: 'https://maps.app.goo.gl/6Lg1wpRueLWpruYe7'
+            },
+            {
+                id: '4', title: 'Caminata a Nyhavn', startTime: '09:45', endTime: '10:00',
+                locationName: 'Kastellet', endLocationName: 'Nyhavn',
+                coords: COORDS.KASTELLET, endCoords: COORDS.NYHAVN,
+                description: 'Paseo hacia el puerto nuevo.',
+                fullDescription: 'Camina bordeando el agua hacia el famoso canal de casas de colores.',
+                tips: 'Disfruta de la arquitectura.',
+                keyDetails: 'Conexión a pie.',
+                priceDKK: 0, priceEUR: 0, type: 'logistics', completed: false,
+                googleMapsUrl: 'https://maps.app.goo.gl/Y1SyUi5XBrHapwNTA'
+            },
+            {
+                id: '5', title: 'Paseo Canales (Nyhavn)', startTime: '10:00', endTime: '11:15',
+                locationName: 'Nyhavn',
+                coords: COORDS.NYHAVN,
+                description: 'Tour en barco (Stromma o Netto).',
+                fullDescription: 'Navega por los canales viendo la Ópera, el Diamante Negro y Christianshavn.',
+                tips: 'Netto-Bådene (azules) o Stromma (verdes). Precio aprox 112 DKK.',
+                keyDetails: 'Vista clásica desde el agua.',
+                priceDKK: 112, priceEUR: 15, type: 'sightseeing', completed: false,
+                ticketUrl: 'https://www.stromma.com/en-dk/copenhagen/sightseeing/sightseeing-by-boat/grand-tour/',
+                instaTag: 'https://www.instagram.com/explore/tags/nyhavn/'
+            },
+            {
+                id: '6', title: 'Amalienborg y Guardia', startTime: '11:40', endTime: '12:30',
+                locationName: 'Palacio Amalienborg',
+                coords: COORDS.AMALIENBORG,
+                description: 'Residencia real y cambio de guardia.',
+                fullDescription: 'Visita la plaza octogonal. A las 12:00 en punto es el cambio de guardia.',
+                tips: 'Iglesia de Mármol está justo al lado (cúpula verde).',
+                keyDetails: 'Cambio de Guardia: 12:00.',
+                priceDKK: 0, priceEUR: 0, type: 'sightseeing', completed: false,
+                googleMapsUrl: 'https://maps.app.goo.gl/iuBTxmtgXZQQwrdp6'
+            },
+            {
+                id: '7', title: 'Almuerzo Danés', startTime: '12:30', endTime: '14:00',
+                locationName: 'Zona Strøget / Nyhavn',
+                coords: COORDS.STROGET,
+                description: 'Prueba un Smørrebrød o un Hot Dog.',
+                fullDescription: 'Tiempo libre para comer. Recomendado: Smørrebrød (tostada abierta) o un Pølse (perrito caliente) en la calle.',
+                tips: 'Evita restaurantes trampa en primera línea de Nyhavn si buscas precio.',
+                keyDetails: 'Gastronomía local.',
+                priceDKK: 250, priceEUR: 33, type: 'food', completed: false
+            },
+            {
+                id: '8', title: 'Torre Redonda (Rundetaarn)', startTime: '14:00', endTime: '15:30',
+                locationName: 'Rundetaarn',
+                coords: COORDS.RUNDETAARN,
+                description: 'Sube la rampa en espiral del siglo XVII.',
+                fullDescription: 'Observatorio astronómico más antiguo de Europa en funcionamiento. Sin escaleras, solo rampa.',
+                tips: 'Vistas 360 del centro antiguo.',
+                keyDetails: 'Entrada ~50 DKK.',
+                priceDKK: 50, priceEUR: 6.70, type: 'sightseeing', completed: false,
+                ticketUrl: 'https://www.rundetaarn.dk/',
+                googleMapsUrl: 'https://maps.app.goo.gl/NdWSQLeUSjG1eo5Z6'
+            },
+            {
+                id: '9', title: 'Castillo de Rosenborg', startTime: '15:30', endTime: '16:30',
+                locationName: 'Jardines del Rey',
+                coords: COORDS.ROSENBORG,
+                description: 'Castillo renacentista y jardines.',
+                fullDescription: 'Pasea por los jardines (Kongens Have). El castillo alberga las joyas de la corona.',
+                tips: 'Solo exteriores y jardines para cumplir horario.',
+                keyDetails: 'Relax antes de volver.',
+                priceDKK: 0, priceEUR: 0, type: 'sightseeing', completed: false,
+                googleMapsUrl: 'https://maps.app.goo.gl/NdWSQLeUSjG1eo5Z6'
+            },
+            {
+                id: '10', title: 'Regreso al Barco', startTime: '16:30', endTime: '17:30',
+                locationName: 'Nørreport', endLocationName: 'Oceankaj',
+                coords: COORDS.NORREPORT, endCoords: COORDS.OCEANKAJ,
+                description: 'Metro + Bus 164. ¡NO TE RETRASES!',
+                fullDescription: 'Metro desde Nørreport a Orientkaj. Luego Bus 164 a Oceankaj. Deja margen.',
+                tips: 'Hora límite absoluta 17:30.',
+                keyDetails: 'Fin de la escala.',
+                priceDKK: 0, priceEUR: 0, type: 'logistics', completed: false,
+                googleMapsUrl: 'https://maps.app.goo.gl/wLqhiVC88rwhhuD36',
+                notes: 'CRITICAL'
+            },
+            {
+                id: '11', title: '¡A BORDO! (Límite 17:30)', startTime: '17:30', endTime: '17:30',
+                locationName: 'MSC Euribia',
+                coords: COORDS.OCEANKAJ,
+                description: 'Todos a bordo. Pasarela se retira.',
+                fullDescription: 'El barco zarpa a las 18:00 en punto. Debes estar a bordo antes de las 17:30.',
+                tips: 'Ten tu tarjeta de crucero a mano.',
+                keyDetails: 'Salida 18:00.',
+                priceDKK: 0, priceEUR: 0, type: 'logistics', completed: false,
+                notes: 'CRITICAL'
+            }
+        ];
+
+        const DANISH_DICT = [
+            { word: 'Goddag', phonetic: "Gou'-day", meaning: 'Buenos días / Hola' },
+            { word: 'Tak', phonetic: "Tack", meaning: 'Gracias' },
+            { word: 'Farvel', phonetic: "Fa-vel'", meaning: 'Adiós' },
+            { word: 'Den Lille Havfrue', phonetic: "Den Lí-lle Ja-fru-e", meaning: 'La Sirenita' },
+            { word: 'Nyhavn', phonetic: "Níu-jau-n", meaning: 'Puerto Nuevo' },
+            { word: 'Strøget', phonetic: "Stroig't", meaning: 'Calle Peatonal' },
+            { word: 'Skål', phonetic: "Skol", meaning: '¡Salud!' },
+        ];
+
+        // --- SERVICES ---
+        const calculateTimeGap = (prevEnd, nextStart) => {
+            const [endH, endM] = prevEnd.split(':').map(Number);
+            const [startH, startM] = nextStart.split(':').map(Number);
+            let diff = (startH * 60 + startM) - (endH * 60 + endM);
+            return diff > 0 ? diff : 0;
+        };
+
+        const calculateDuration = (start, end) => {
+            const [sH, sM] = start.split(':').map(Number);
+            const [eH, eM] = end.split(':').map(Number);
+            let diff = (eH*60 + eM) - (sH*60 + sM);
+            if(diff < 0) diff += 1440;
+            const h = Math.floor(diff/60);
+            const m = diff % 60;
+            if(h>0) return `${h}h ${m>0 ? m+'m' : ''}`;
+            return `${m} min`;
+        };
+
+        const calculateDistance = (lat1, lon1, lat2, lon2) => {
+            if(!lat1 || !lon1 || !lat2 || !lon2) return 0;
+            const R = 6371e3; // metres
+            const φ1 = lat1 * Math.PI/180;
+            const φ2 = lat2 * Math.PI/180;
+            const Δφ = (lat2-lat1) * Math.PI/180;
+            const Δλ = (lon2-lon1) * Math.PI/180;
+            const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) +
+                      Math.cos(φ1) * Math.cos(φ2) *
+                      Math.sin(Δλ/2) * Math.sin(Δλ/2);
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+            return R * c;
+        };
+
+        const isTimeActive = (startStr, endStr) => {
+            const now = new Date();
+            const currentMins = now.getHours() * 60 + now.getMinutes();
+            const [sH, sM] = startStr.split(':').map(Number);
+            const [eH, eM] = endStr.split(':').map(Number);
+            const startMins = sH * 60 + sM;
+            const endMins = eH * 60 + eM;
+            return currentMins >= startMins && currentMins < endMins;
+        };
+        
+        const getProgress = (startStr, endStr) => {
+             const now = new Date();
+             const currentMins = now.getHours() * 60 + now.getMinutes();
+             const [sH, sM] = startStr.split(':').map(Number);
+             const [eH, eM] = endStr.split(':').map(Number);
+             const startMins = sH * 60 + sM;
+             const endMins = eH * 60 + eM;
+             const total = endMins - startMins;
+             const elapsed = currentMins - startMins;
+             return Math.min(100, Math.max(0, (elapsed / total) * 100));
+        };
+
+        // --- COMPONENTS ---
+
+        // 1. TIMELINE
+        const Timeline = ({ itinerary, onToggleComplete, onLocate, onShowRoute, onShowDetails, userLocation }) => {
+            const now = new Date();
+            const currentMins = now.getHours() * 60 + now.getMinutes();
+
+            return (
+                <div className="pb-24 px-4 pt-4 max-w-lg mx-auto">
+                     {/* Timeline Line */}
+                    <div className="relative border-l-2 border-slate-200 ml-4 space-y-0">
+                        {itinerary.map((act, idx) => {
+                            const nextAct = itinerary[idx + 1];
+                            const gap = nextAct ? calculateTimeGap(act.endTime, nextAct.startTime) : 0;
+                            const isActive = isTimeActive(act.startTime, act.endTime);
+                            const progress = isActive ? getProgress(act.startTime, act.endTime) : 0;
+                            
+                            // Calculate Distance if user location exists
+                            let distStr = null;
+                            if (userLocation && act.coords) {
+                                const d = calculateDistance(userLocation.lat, userLocation.lng, act.coords.lat, act.coords.lng);
+                                distStr = d < 1000 ? `${Math.round(d)} m` : `${(d/1000).toFixed(1)} km`;
+                            }
+
+                            // Check if "NOW" line should be here (between acts)
+                            const [eH, eM] = act.endTime.split(':').map(Number);
+                            const actEndMins = eH * 60 + eM;
+                            let showNowLine = false;
+                            if (nextAct) {
+                                const [nSH, nSM] = nextAct.startTime.split(':').map(Number);
+                                const nextStartMins = nSH * 60 + nSM;
+                                if (currentMins >= actEndMins && currentMins < nextStartMins) showNowLine = true;
+                            }
+
+                            return (
+                                <div key={act.id} className="relative pl-6 pb-6">
+                                    {/* Dot */}
+                                    <div 
+                                        className={`absolute -left-[9px] top-0 rounded-full bg-white border-2 cursor-pointer z-10 transition-colors ${
+                                            act.completed ? 'border-mountain-500 text-mountain-500' : 'border-fjord-500 text-fjord-500'
+                                        }`}
+                                        onClick={(e) => { e.stopPropagation(); onToggleComplete(act.id); }}
+                                    >
+                                        {act.completed ? <Icons.CheckCircle2 size={20} /> : <Icons.Circle size={20} />}
+                                    </div>
+
+                                    {/* Card */}
+                                    <div 
+                                        onClick={() => onShowDetails(act)}
+                                        className={`rounded-xl border shadow-sm p-4 active:scale-[0.98] transition-all relative overflow-hidden ${
+                                            isActive 
+                                            ? 'bg-white border-fjord-500 ring-2 ring-fjord-200 shadow-md' 
+                                            : act.completed ? 'bg-slate-50 border-slate-200 opacity-70' : 'bg-white border-slate-200'
+                                        }`}
+                                    >
+                                        {/* Active Progress Bar Background */}
+                                        {isActive && (
+                                            <div className="absolute bottom-0 left-0 h-1 bg-fjord-100 w-full">
+                                                <div className="h-full bg-fjord-500 transition-all duration-1000" style={{width: `${progress}%`}}></div>
+                                            </div>
+                                        )}
+
+                                        <div className="flex flex-col mb-2">
+                                            <div className="flex flex-wrap items-center gap-2 mb-2">
+                                                <span className={`text-xs font-bold px-2 py-0.5 rounded ${isActive ? 'bg-fjord-600 text-white' : 'bg-slate-100 text-slate-600'}`}>
+                                                    {act.startTime} - {act.endTime}
+                                                </span>
+                                                <span className="text-xs font-bold px-2 py-0.5 rounded bg-slate-100 text-slate-600 border border-slate-200 flex items-center">
+                                                     ⏱ {calculateDuration(act.startTime, act.endTime)}
+                                                </span>
+                                                {distStr && (
+                                                     <span className="text-xs font-bold px-2 py-0.5 rounded bg-blue-50 text-blue-600 border border-blue-100 flex items-center">
+                                                        <Icons.Nav size={10} className="mr-1"/> a {distStr}
+                                                     </span>
+                                                )}
+                                                {isActive && <span className="text-[10px] font-bold text-fjord-600 animate-pulse">⚡ EN CURSO</span>}
+                                                {act.notes === 'CRITICAL' && <Icons.AlertTriangle size={14} className="text-red-500" />}
+                                            </div>
+                                            <h3 className="font-bold text-lg leading-tight text-slate-800">{act.title}</h3>
+                                        </div>
+
+                                        {/* Location */}
+                                        <div className="flex items-center text-sm text-slate-500 mb-3 gap-1 flex-wrap">
+                                            <Icons.MapPin size={14} /> 
+                                            <span>{act.locationName}</span>
+                                            {act.endLocationName && (
+                                                <>
+                                                    <Icons.ArrowRight size={12} className="mx-1" />
+                                                    <span>{act.endLocationName}</span>
+                                                </>
+                                            )}
+                                        </div>
+
+                                        {/* Buttons */}
+                                        <div className="flex gap-2 mt-3 overflow-x-auto scrollbar-hide pb-1">
+                                            <button 
+                                                onClick={(e) => { e.stopPropagation(); onLocate(act.coords); }}
+                                                className="px-3 py-1.5 bg-fjord-50 text-fjord-700 text-xs font-bold rounded flex items-center whitespace-nowrap"
+                                            >
+                                                <Icons.MapPin size={14} className="mr-1" /> Ubicación
+                                            </button>
+                                            
+                                            {act.googleMapsUrl && (
+                                                <button 
+                                                    onClick={(e) => { e.stopPropagation(); window.open(act.googleMapsUrl, '_blank'); }}
+                                                    className="px-3 py-1.5 bg-green-50 text-green-700 text-xs font-bold rounded flex items-center whitespace-nowrap"
+                                                >
+                                                    🗺️ Ruta
+                                                </button>
+                                            )}
+
+                                            {act.ticketUrl && (
+                                                <button 
+                                                    onClick={(e) => { e.stopPropagation(); window.open(act.ticketUrl, '_blank'); }}
+                                                    className="px-3 py-1.5 bg-orange-50 text-orange-700 text-xs font-bold rounded flex items-center whitespace-nowrap"
+                                                >
+                                                    <Icons.Ticket size={14} className="mr-1" /> Ticket
+                                                </button>
+                                            )}
+                                        </div>
+                                    </div>
+
+                                    {/* Gap Connector */}
+                                    {gap > 0 && (
+                                        <div className="absolute left-[3px] -bottom-[12px] w-full z-10 pointer-events-none">
+                                            <div className="flex items-center">
+                                                <div className="bg-slate-100 text-slate-500 text-[10px] font-bold px-2 py-0.5 rounded-full border border-slate-200 shadow-sm flex items-center gap-1">
+                                                    <Icons.ArrowDown size={10} /> {gap} min traslado/libre
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {/* NOW Line Indicator */}
+                                    {showNowLine && (
+                                        <div className="absolute left-0 w-full flex items-center z-20 -mt-3 pointer-events-none">
+                                            <div className="w-full border-t-2 border-red-500 border-dashed"></div>
+                                            <span className="absolute right-0 bg-red-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-l shadow">
+                                                🕒 AHORA {now.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                                            </span>
+                                        </div>
+                                    )}
+                                </div>
+                            );
+                        })}
+                    </div>
+                </div>
+            );
+        };
+
+        // 2. BUDGET
+        const Budget = ({ itinerary }) => {
+            const [currency, setCurrency] = useState('DKK'); // View currency for list
+            
+            // Calculator State (Independent)
+            const [calcMode, setCalcMode] = useState('DKK_TO_EUR');
+            const [convAmount, setConvAmount] = useState('');
+            
+            const [manualExpenses, setManualExpenses] = useState([]);
+            const [newItemName, setNewItemName] = useState('');
+            const [newItemPrice, setNewItemPrice] = useState('');
+
+            // Filter itinerary items that have a cost
+            const costItems = useMemo(() => itinerary.filter(i => i.priceDKK > 0 || i.priceEUR > 0), [itinerary]);
+            
+            // Initial toggle state: Default UNCHECKED (User checks them as they pay)
+            const [checkedItems, setCheckedItems] = useState({});
+
+            const toggleCheck = (id) => {
+                setCheckedItems(prev => ({...prev, [id]: !prev[id]}));
+            };
+
+            const addManualExpense = () => {
+                if(!newItemName || !newItemPrice) return;
+                const price = parseFloat(newItemPrice);
+                if(isNaN(price)) return;
+                setManualExpenses([...manualExpenses, { id: Date.now(), title: newItemName, price, currency: currency }]);
+                setNewItemName('');
+                setNewItemPrice('');
+            };
+
+            // Rates
+            const RATE_DKK_TO_EUR = 7.46; // 1 EUR = 7.46 DKK
+
+            const convert = (val, from, to) => {
+                 if (from === to) return val;
+                 if (from === 'EUR' && to === 'DKK') return val * RATE_DKK_TO_EUR;
+                 if (from === 'DKK' && to === 'EUR') return val / RATE_DKK_TO_EUR;
+                 return val;
+            };
+
+            // Calculator Result Logic
+            const getCalcResult = () => {
+                const val = parseFloat(convAmount);
+                if(isNaN(val)) return '---';
+                if(calcMode === 'DKK_TO_EUR') {
+                    // DKK input -> EUR output
+                    return (val / RATE_DKK_TO_EUR).toFixed(2) + ' €';
+                } else {
+                    // EUR input -> DKK output
+                    return (val * RATE_DKK_TO_EUR).toFixed(0) + ' kr';
+                }
+            }
+
+            // Calculate totals
+            let totalBudget = 0;
+            let totalSpent = 0;
+
+            // From Itinerary
+            costItems.forEach(item => {
+                const price = currency === 'DKK' ? item.priceDKK : item.priceEUR;
+                totalBudget += price;
+                if (checkedItems[item.id]) totalSpent += price;
+            });
+
+            // From Manual
+            manualExpenses.forEach(item => {
+                const price = convert(item.price, item.currency, currency);
+                totalBudget += price; 
+                totalSpent += price;
+            });
+
+            return (
+                <div className="pb-24 px-4 pt-6 max-w-lg mx-auto overflow-y-auto h-full">
+                    {/* Header */}
+                    <div className="flex justify-between items-center mb-6">
+                        <h2 className="text-2xl font-bold text-fjord-500 flex items-center gap-2">
+                           <Icons.Wallet /> Gastos
+                        </h2>
+                        <div className="bg-slate-200 p-1 rounded-lg flex">
+                            <button onClick={()=>setCurrency('DKK')} className={`px-3 py-1 rounded font-bold text-sm ${currency==='DKK'?'bg-white shadow text-fjord-600':'text-slate-500'}`}>DKK kr</button>
+                            <button onClick={()=>setCurrency('EUR')} className={`px-3 py-1 rounded font-bold text-sm ${currency==='EUR'?'bg-white shadow text-fjord-600':'text-slate-500'}`}>EUR €</button>
+                        </div>
+                    </div>
+
+                    {/* Converter Tool */}
+                    <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200 mb-6 transition-all ring-1 ring-slate-100">
+                        <div className="flex justify-between items-center mb-3">
+                            <label className="text-xs font-bold text-slate-400 uppercase flex items-center gap-1">
+                                <Icons.Repeat size={12}/> Calculadora
+                            </label>
+                            <button 
+                                onClick={() => setCalcMode(prev => prev === 'DKK_TO_EUR' ? 'EUR_TO_DKK' : 'DKK_TO_EUR')}
+                                className="text-xs bg-slate-100 hover:bg-slate-200 px-3 py-1.5 rounded-full text-fjord-600 font-bold flex items-center gap-1 transition-colors"
+                            >
+                                {calcMode === 'DKK_TO_EUR' ? '🇩🇰 DKK → 🇪🇺 EUR' : '🇪🇺 EUR → 🇩🇰 DKK'}
+                            </button>
+                        </div>
+                        <div className="flex gap-2 items-center">
+                            <input 
+                                type="number" 
+                                value={convAmount} 
+                                onChange={(e)=>setConvAmount(e.target.value)}
+                                placeholder={calcMode === 'DKK_TO_EUR' ? "Valor en coronas..." : "Valor en euros..."}
+                                className="flex-1 border-b-2 border-slate-200 bg-transparent p-2 text-2xl font-bold text-slate-700 outline-none focus:border-fjord-500 placeholder:text-slate-300 transition-colors"
+                            />
+                        </div>
+                        {convAmount && (
+                            <div className="mt-3 text-right bg-emerald-50 p-3 rounded-lg border border-emerald-100 animate-slide-up">
+                                 <span className="text-sm text-emerald-600 font-medium mr-2 uppercase tracking-wide">Es igual a:</span>
+                                 <span className="text-3xl font-bold text-emerald-700">{getCalcResult()}</span>
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Totals Card */}
+                    <div className="bg-gradient-to-br from-fjord-600 to-fjord-800 rounded-2xl p-6 text-white shadow-lg mb-6 relative overflow-hidden">
+                        <div className="relative z-10">
+                            <p className="text-fjord-200 text-xs uppercase tracking-wider mb-1">Gasto Realizado</p>
+                            <div className="text-4xl font-bold mb-4">
+                                {currency === 'DKK' ? `${totalSpent.toFixed(0)} kr` : `€${totalSpent.toFixed(2)}`}
+                            </div>
+                            
+                            {/* Progress Bar */}
+                            <div className="w-full bg-black/20 h-2 rounded-full overflow-hidden mb-1">
+                                <div className="h-full bg-emerald-400 transition-all duration-500" style={{width: `${Math.min(100, (totalSpent/totalBudget)*100)}%`}}></div>
+                            </div>
+                            <div className="flex justify-between text-xs text-fjord-200">
+                                <span>0</span>
+                                <span>Presupuesto: {currency === 'DKK' ? `${totalBudget.toFixed(0)}` : `€${totalBudget.toFixed(2)}`}</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Planner List */}
+                    <div className="space-y-3 pb-6">
+                        <h3 className="font-bold text-slate-700 ml-1">Planificado</h3>
+                        {costItems.map(item => (
+                            <div key={item.id} onClick={()=>toggleCheck(item.id)} className="bg-white p-3 rounded-lg border border-slate-200 flex justify-between items-center shadow-sm cursor-pointer active:scale-95 transition-transform select-none">
+                                <div className="flex items-center gap-3">
+                                    <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-colors ${checkedItems[item.id] ? 'bg-emerald-500 border-emerald-500' : 'border-slate-300'}`}>
+                                        {checkedItems[item.id] && <span className="text-white text-xs font-bold">✓</span>}
+                                    </div>
+                                    <div>
+                                        <p className={`font-medium ${checkedItems[item.id] ? 'text-slate-400 line-through' : 'text-slate-800'}`}>{item.title}</p>
+                                        <p className="text-xs text-slate-500 capitalize">{item.type}</p>
+                                    </div>
+                                </div>
+                                <span className="font-bold text-slate-700">
+                                    {currency === 'DKK' ? `${item.priceDKK} kr` : `€${item.priceEUR}`}
+                                </span>
+                            </div>
+                        ))}
+
+                        {/* Manual Expenses List */}
+                         {manualExpenses.length > 0 && manualExpenses.map(item => (
+                            <div key={item.id} className="bg-slate-50 p-3 rounded-lg border border-slate-200 border-dashed flex justify-between items-center">
+                                <div className="flex items-center gap-3">
+                                    <div className="w-6 h-6 rounded-full border-2 bg-emerald-500 border-emerald-500 flex items-center justify-center text-white text-xs font-bold">✓</div>
+                                    <span className="font-medium text-slate-600">{item.title}</span>
+                                </div>
+                                <span className="font-bold text-slate-600">
+                                    {currency === 'DKK' 
+                                        ? `${convert(item.price, item.currency, 'DKK').toFixed(0)} kr` 
+                                        : `€${convert(item.price, item.currency, 'EUR').toFixed(2)}`}
+                                </span>
+                            </div>
+                        ))}
+
+                        {/* Add Manual */}
+                        <div className="mt-6 pt-4 border-t border-slate-200">
+                            <h4 className="text-xs font-bold text-slate-400 uppercase mb-2">+ Añadir Gasto Extra</h4>
+                            <div className="flex gap-2">
+                                <input className="border rounded p-3 flex-1 text-sm outline-none focus:border-fjord-500" placeholder="Concepto (ej: Imán)" value={newItemName} onChange={e=>setNewItemName(e.target.value)} />
+                                <input className="border rounded p-3 w-24 text-sm outline-none focus:border-fjord-500" type="number" placeholder="Precio" value={newItemPrice} onChange={e=>setNewItemPrice(e.target.value)} />
+                                <button onClick={addManualExpense} className="bg-emerald-500 text-white px-4 rounded font-bold text-xl active:bg-emerald-600 transition-colors">+</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        // 3. MAP (Leaflet global)
+        const MapComponent = ({ activities, userLocation, focusedLocation }) => {
+            const mapRef = useRef(null);
+            const mapInstance = useRef(null);
+            const markersRef = useRef([]);
+
+            useEffect(() => {
+                if(!mapRef.current) return;
+                if(mapInstance.current) return;
+
+                const map = L.map(mapRef.current).setView([COORDS.LITTLE_MERMAID.lat, COORDS.LITTLE_MERMAID.lng], 13);
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                    attribution: '© OpenStreetMap',
+                    maxZoom: 18
+                }).addTo(map);
+                mapInstance.current = map;
+
+                // Fix icons
+                delete L.Icon.Default.prototype._getIconUrl;
+                L.Icon.Default.mergeOptions({
+                    iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
+                    iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
+                    shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+                });
+            }, []);
+
+            useEffect(() => {
+                const map = mapInstance.current;
+                if(!map) return;
+
+                // Clear
+                markersRef.current.forEach(m => m.remove());
+                markersRef.current = [];
+
+                // Add activities
+                activities.forEach(act => {
+                    const m = L.marker([act.coords.lat, act.coords.lng])
+                        .addTo(map)
+                        .bindPopup(`<b>${act.title}</b><br/>${act.locationName}`);
+                    markersRef.current.push(m);
+
+                    if(act.endCoords) {
+                         const line = L.polyline([
+                             [act.coords.lat, act.coords.lng],
+                             [act.endCoords.lat, act.endCoords.lng]
+                         ], {color: 'blue', dashArray: '5,5'}).addTo(map);
+                         markersRef.current.push(line);
+                         
+                         const m2 = L.marker([act.endCoords.lat, act.endCoords.lng])
+                            .addTo(map)
+                            .bindPopup(`<b>Fin: ${act.title}</b>`);
+                         markersRef.current.push(m2);
+                    }
+                });
+
+                // User
+                if(userLocation) {
+                    const userM = L.circleMarker([userLocation.lat, userLocation.lng], {
+                        radius: 8, fillColor: '#3b82f6', color: '#fff', weight: 2, fillOpacity: 1
+                    }).addTo(map).bindPopup("Tú estás aquí");
+                    markersRef.current.push(userM);
+                }
+
+            }, [activities, userLocation]);
+
+            useEffect(() => {
+                if(mapInstance.current && focusedLocation) {
+                    mapInstance.current.flyTo([focusedLocation.lat, focusedLocation.lng], 16);
+                }
+            }, [focusedLocation]);
+
+            return <div ref={mapRef} className="w-full h-full z-0" />;
+        };
+
+        // 4. GUIDE
+        const Guide = ({ userLocation }) => {
+            const [weather, setWeather] = useState(null);
+            const [hourly, setHourly] = useState([]);
+            const [daily, setDaily] = useState([]);
+            const [sunData, setSunData] = useState({ sunrise: null, sunset: null });
+            const [playing, setPlaying] = useState(null); // Track which word is playing
+            const now = new Date();
+
+            useEffect(() => {
+                // Fetch Weather for Copenhagen (5 days)
+                fetch('https://api.open-meteo.com/v1/forecast?latitude=55.67&longitude=12.56&current=temperature_2m,weather_code&hourly=temperature_2m,precipitation_probability,weather_code&daily=sunrise,sunset,temperature_2m_max,temperature_2m_min,weather_code,precipitation_probability_max&timezone=Europe%2FBerlin&forecast_days=5')
+                    .then(r => r.json())
+                    .then(data => {
+                        setWeather(data.current);
+                        setSunData({
+                            sunrise: new Date(data.daily.sunrise[0]),
+                            sunset: new Date(data.daily.sunset[0])
+                        });
+
+                        // Hourly logic (08:00 to 18:00)
+                        if(data.hourly) {
+                             const hours = data.hourly.time.map((t, i) => ({
+                                 time: t,
+                                 temp: data.hourly.temperature_2m[i],
+                                 rain: data.hourly.precipitation_probability[i],
+                                 code: data.hourly.weather_code[i]
+                             }));
+                             // Filter for today between 07:00 and 18:00
+                             const usefulHours = hours.filter(h => {
+                                 const d = new Date(h.time);
+                                 const hNum = d.getHours();
+                                 return hNum >= 8 && hNum <= 18; 
+                             });
+                             setHourly(usefulHours);
+                        }
+
+                        // Daily Logic (5 Days)
+                        if(data.daily) {
+                            const days = data.daily.time.map((t, i) => ({
+                                date: new Date(t),
+                                max: data.daily.temperature_2m_max[i],
+                                min: data.daily.temperature_2m_min[i],
+                                rain: data.daily.precipitation_probability_max[i],
+                                code: data.daily.weather_code[i]
+                            }));
+                            setDaily(days);
+                        }
+                    })
+                    .catch(e => console.log(e));
+            }, []);
+
+            // TTS Logic
+            const playAudio = (word) => {
+                if (!window.speechSynthesis) {
+                    alert("Tu navegador no soporta audio.");
+                    return;
+                }
+                
+                // Cancel previous
+                window.speechSynthesis.cancel();
+
+                const utterance = new SpeechSynthesisUtterance(word);
+                utterance.lang = 'da-DK'; // Danish
+                utterance.rate = 0.8; // Slightly slower
+                
+                setPlaying(word);
+                utterance.onend = () => setPlaying(null);
+                
+                window.speechSynthesis.speak(utterance);
+            };
+
+            // Visual Sun Chart
+            const SunChart = () => {
+                if(!sunData.sunrise) return null;
+                const sunriseMins = sunData.sunrise.getHours()*60 + sunData.sunrise.getMinutes();
+                const sunsetMins = sunData.sunset.getHours()*60 + sunData.sunset.getMinutes();
+                const nowMins = now.getHours()*60 + now.getMinutes();
+                
+                const getPos = (mins) => (mins / 1440) * 100;
+
+                return (
+                    <div className="bg-slate-900 rounded-xl p-4 mb-6 relative h-28 overflow-hidden text-white shadow-lg">
+                        <div className="absolute top-2 left-2 text-xs font-bold text-slate-400">CICLO SOLAR 24H</div>
+                        
+                        {/* Bars */}
+                        <div className="absolute top-8 left-0 w-full h-8 flex">
+                            {/* Night pre-dawn */}
+                            <div className="h-full bg-slate-800" style={{width: `${getPos(sunriseMins)}%`}}></div>
+                            {/* Daylight */}
+                            <div className="h-full bg-gradient-to-r from-orange-400 via-sky-400 to-orange-400" style={{width: `${getPos(sunsetMins) - getPos(sunriseMins)}%`}}></div>
+                            {/* Night post-sunset */}
+                            <div className="h-full bg-slate-800 flex-1"></div>
+                        </div>
+
+                        {/* Markers */}
+                        <div className="absolute top-16 w-full h-6 text-[10px] text-slate-300">
+                             <div className="absolute -translate-x-1/2 flex flex-col items-center" style={{left: `${getPos(sunriseMins)}%`}}>
+                                <Icons.Sun size={12} className="text-orange-300"/>
+                                <span>{sunData.sunrise.toLocaleTimeString([],{hour:'2-digit', minute:'2-digit'})}</span>
+                             </div>
+                             <div className="absolute -translate-x-1/2 flex flex-col items-center" style={{left: `${getPos(sunsetMins)}%`}}>
+                                <Icons.Moon size={12} className="text-orange-300"/>
+                                <span>{sunData.sunset.toLocaleTimeString([],{hour:'2-digit', minute:'2-digit'})}</span>
+                             </div>
+                        </div>
+
+                        {/* NOW Line */}
+                        <div className="absolute top-6 bottom-0 w-0.5 bg-red-500 z-10 shadow-[0_0_5px_rgba(239,68,68,0.8)]" style={{left: `${getPos(nowMins)}%`}}>
+                            <div className="absolute -top-1 -translate-x-1/2 bg-red-500 text-white text-[8px] font-bold px-1 rounded">AHORA</div>
+                        </div>
+                    </div>
+                );
+            };
+
+            const getWeatherIcon = (code) => {
+                 if(code <= 3) return <Icons.Sun size={20} className="text-orange-400"/>;
+                 if(code >= 45 && code <= 48) return <Icons.Cloud size={20} className="text-slate-400"/>;
+                 return <Icons.CloudRain size={20} className="text-blue-500"/>;
+            };
+
+            const getDayName = (date) => {
+                return date.toLocaleDateString('es-ES', {weekday: 'short'}).replace('.','');
+            };
+
+            return (
+                <div className="pb-24 px-4 pt-6 max-w-lg mx-auto overflow-y-auto h-full">
+                    {/* SOS & Tools */}
+                    <div className="grid grid-cols-2 gap-4 mb-6">
+                        <button 
+                             onClick={() => {
+                                 const txt = `🆘 SOS! Necesito ayuda en Copenhague. Mi ubicación: https://maps.google.com/?q=${userLocation?.lat},${userLocation?.lng}`;
+                                 window.open(`https://wa.me/?text=${encodeURIComponent(txt)}`, '_blank');
+                             }}
+                             className="bg-red-600 text-white p-4 rounded-xl shadow-lg flex flex-col items-center justify-center animate-pulse active:scale-95"
+                        >
+                            <span className="text-2xl font-bold">SOS</span>
+                            <span className="text-xs mt-1">Emergencia</span>
+                        </button>
+                        
+                        <div className="space-y-2">
+                            <button 
+                                onClick={() => window.open('https://play.google.com/store/apps/details?id=com.google.android.apps.translate', '_blank')}
+                                className="bg-blue-600 text-white p-2 rounded-lg w-full flex items-center justify-center gap-2 text-xs font-bold shadow"
+                            >
+                                <Icons.Camera size={16}/> Traductor Visual
+                            </button>
+                            <button 
+                                onClick={() => window.open('https://play.google.com/store/apps/details?id=com.msccruises.mscforme', '_blank')}
+                                className="bg-white border border-slate-300 text-slate-700 p-2 rounded-lg w-full flex items-center justify-center gap-2 text-xs font-bold"
+                            >
+                                MSC for Me
+                            </button>
+                        </div>
+                    </div>
+
+                    <SunChart />
+
+                    {/* Hourly Weather */}
+                    {hourly.length > 0 && (
+                        <div className="mb-6">
+                            <h3 className="font-bold text-slate-700 mb-2">Pronóstico Hora a Hora (Hoy)</h3>
+                            <div className="flex overflow-x-auto gap-3 pb-2 snap-x">
+                                {hourly.map((h, i) => (
+                                    <div key={i} className="flex-shrink-0 w-20 bg-white border border-slate-200 p-3 rounded-lg flex flex-col items-center snap-center shadow-sm">
+                                        <span className="text-xs font-bold text-slate-500 mb-1">
+                                            {new Date(h.time).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}
+                                        </span>
+                                        {h.rain > 30 ? <Icons.CloudRain className="text-blue-500 mb-1"/> : <Icons.Sun className="text-orange-400 mb-1"/>}
+                                        <span className="font-bold text-lg">{h.temp}°</span>
+                                        <span className="text-[10px] text-blue-500 font-bold">{h.rain}% 💧</span>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* 5-Day Forecast */}
+                    {daily.length > 0 && (
+                        <div className="mb-8 bg-white rounded-xl shadow-sm border border-slate-200 p-4">
+                            <h3 className="font-bold text-slate-700 mb-3 flex items-center gap-2">
+                                <Icons.CalendarClock size={18}/> Previsión 5 Días
+                            </h3>
+                            <div className="space-y-3">
+                                {daily.map((day, i) => (
+                                    <div key={i} className="flex justify-between items-center text-sm border-b border-slate-50 last:border-0 pb-2 last:pb-0">
+                                        <div className="w-16 font-bold text-slate-600 capitalize">{getDayName(day.date)}</div>
+                                        <div className="flex items-center gap-2 flex-1 justify-center">
+                                            {getWeatherIcon(day.code)}
+                                            {day.rain > 20 && <span className="text-xs text-blue-500 font-bold">{day.rain}%</span>}
+                                        </div>
+                                        <div className="w-20 text-right">
+                                            <span className="font-bold text-slate-800">{Math.round(day.max)}°</span>
+                                            <span className="text-slate-400 mx-1">/</span>
+                                            <span className="text-slate-500">{Math.round(day.min)}°</span>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Dictionary */}
+                    <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                        <div className="bg-slate-50 p-3 border-b border-slate-200 font-bold text-slate-700">Diccionario Danés Exprés</div>
+                        {DANISH_DICT.map((d, i) => (
+                            <div key={i} className="p-3 border-b last:border-0 border-slate-100 flex justify-between items-center">
+                                <div>
+                                    <p className="font-bold text-fjord-600 text-lg">{d.word}</p>
+                                    <p className="text-xs text-slate-500 italic">{d.phonetic}</p>
+                                </div>
+                                <div className="text-right flex flex-col items-end">
+                                    <span className="text-sm font-medium text-slate-700 mb-1">{d.meaning}</span>
+                                    <button 
+                                        onClick={() => playAudio(d.word)}
+                                        className={`p-2 rounded-full transition-colors flex items-center gap-1 text-xs font-bold ${playing === d.word ? 'bg-emerald-100 text-emerald-600' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'}`}
+                                    >
+                                        <Icons.Volume2 size={16} className={playing === d.word ? 'animate-pulse' : ''} />
+                                        {playing === d.word ? 'Oyendo...' : 'Oír'}
+                                    </button>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                    
+                    <div className="mt-8 text-center text-xs text-slate-400 pb-4">
+                        Actualizado: 04 Dic 2025<br/>
+                        © 2025-2026 Gonzalo Arenas de la Hoz
+                    </div>
+                </div>
+            );
+        };
+
+        // --- APP ---
+        const App = () => {
+            const [itinerary, setItinerary] = useState(INITIAL_ITINERARY);
+            const [tab, setTab] = useState('timeline');
+            const [userLoc, setUserLoc] = useState(null);
+            const [mapFocus, setMapFocus] = useState(null);
+            const [countdown, setCountdown] = useState('');
+            const [modalAct, setModalAct] = useState(null); // Detail Modal
+
+            // Load/Save
+            useEffect(() => {
+                const saved = localStorage.getItem(STORAGE_KEY);
+                if(saved) {
+                    try {
+                        const parsed = JSON.parse(saved);
+                        // Merge completed status only
+                        const merged = INITIAL_ITINERARY.map(init => {
+                            const found = parsed.find(p => p.id === init.id);
+                            return found ? {...init, completed: found.completed} : init;
+                        });
+                        setItinerary(merged);
+                    } catch(e) { console.log(e); }
+                } else {
+                    // Force initial save for new key
+                    localStorage.setItem(STORAGE_KEY, JSON.stringify(INITIAL_ITINERARY));
+                }
+            }, []);
+
+            const updateItinerary = (newIt) => {
+                setItinerary(newIt);
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(newIt));
+            };
+
+            const toggleComplete = (id) => {
+                updateItinerary(itinerary.map(a => a.id === id ? {...a, completed: !a.completed} : a));
+            };
+
+            // Geo
+            useEffect(() => {
+                if(navigator.geolocation) {
+                    const id = navigator.geolocation.watchPosition(
+                        p => setUserLoc({lat: p.coords.latitude, lng: p.coords.longitude}),
+                        e => console.log(e),
+                        {enableHighAccuracy: true}
+                    );
+                    return () => navigator.geolocation.clearWatch(id);
+                }
+            }, []);
+
+            // Countdown to ONBOARD TIME (17:30)
+            useEffect(() => {
+                const timer = setInterval(() => {
+                    const now = new Date();
+                    const [h, m] = SHIP_ONBOARD_TIME.split(':').map(Number);
+                    const target = new Date();
+                    target.setHours(h, m, 0);
+                    
+                    // Logic: If before 8AM, count to Arrival. If after, count to Onboard.
+                    const [arrH, arrM] = SHIP_ARRIVAL_TIME.split(':').map(Number);
+                    const arrival = new Date();
+                    arrival.setHours(arrH, arrM, 0);
+
+                    if (now < arrival) {
+                        // Counting to arrival
+                        const diff = arrival - now;
+                        const hh = Math.floor(diff / 3600000);
+                        const mm = Math.floor((diff % 3600000) / 60000);
+                        setCountdown(`Llegada en ${hh}h ${mm}m`);
+                    } else {
+                        // Counting to onboard
+                        const diff = target - now;
+                        if(diff <= 0) setCountdown("¡A BORDO!");
+                        else {
+                            const hh = Math.floor(diff / 3600000);
+                            const mm = Math.floor((diff % 3600000) / 60000);
+                            const ss = Math.floor((diff % 60000) / 1000);
+                            setCountdown(`${hh}h ${mm}m ${ss}s`);
+                        }
+                    }
+                }, 1000);
+                return () => clearInterval(timer);
+            }, []);
+
+            return (
+                <div className="flex flex-col h-full font-sans">
+                    {/* Top Bar */}
+                    <header className="bg-fjord-900 text-white p-3 shadow z-20 flex justify-between items-center shrink-0">
+                        <div className="flex flex-col">
+                            <span className="text-[10px] text-sunset-500 font-bold tracking-widest uppercase">Todos a bordo: {SHIP_ONBOARD_TIME}</span>
+                            <span className="text-xs text-fjord-200">Salida: {SHIP_DEPARTURE_TIME}</span>
+                        </div>
+                        <div className="text-xl font-mono font-bold text-white tabular-nums">
+                            {countdown}
+                        </div>
+                    </header>
+
+                    {/* Main */}
+                    <main className="flex-1 relative overflow-hidden bg-slate-50 h-full">
+                        {tab === 'timeline' && (
+                            <div className="h-full overflow-y-auto">
+                                <Timeline 
+                                    itinerary={itinerary} 
+                                    onToggleComplete={toggleComplete} 
+                                    onLocate={(coords) => { setMapFocus(coords); setTab('map'); }}
+                                    onShowDetails={setModalAct}
+                                    userLocation={userLoc}
+                                />
+                            </div>
+                        )}
+                        {tab === 'map' && (
+                            <MapComponent 
+                                activities={itinerary} 
+                                userLocation={userLoc} 
+                                focusedLocation={mapFocus} 
+                            />
+                        )}
+                        {tab === 'budget' && <Budget itinerary={itinerary} />}
+                        {tab === 'guide' && <Guide userLocation={userLoc} />}
+                    </main>
+
+                    {/* Nav */}
+                    <nav className="bg-white border-t border-slate-200 pb-safe shrink-0 z-30">
+                        <div className="flex justify-around items-center h-16">
+                            {[
+                                {id: 'timeline', icon: Icons.CalendarClock, label: 'Itinerario'},
+                                {id: 'map', icon: Icons.MapIcon, label: 'Mapa'},
+                                {id: 'budget', icon: Icons.Wallet, label: 'Gastos'},
+                                {id: 'guide', icon: Icons.BookOpen, label: 'Guía'}
+                            ].map(item => (
+                                <button 
+                                    key={item.id}
+                                    onClick={() => setTab(item.id)}
+                                    className={`flex flex-col items-center w-full h-full justify-center transition-colors ${tab === item.id ? 'text-fjord-600' : 'text-slate-400'}`}
+                                >
+                                    <item.icon size={24} />
+                                    <span className="text-[10px] font-bold mt-1">{item.label}</span>
+                                </button>
+                            ))}
+                        </div>
+                    </nav>
+
+                    {/* MODAL DETAIL */}
+                    {modalAct && (
+                        <div className="fixed inset-0 z-50 bg-black/50 flex items-end sm:items-center justify-center p-0 sm:p-4 backdrop-blur-sm" onClick={() => setModalAct(null)}>
+                            <div className="bg-white w-full sm:max-w-md rounded-t-2xl sm:rounded-2xl p-6 shadow-2xl animate-slide-up" onClick={e => e.stopPropagation()}>
+                                <div className="flex justify-between items-start mb-4">
+                                    <h3 className="text-2xl font-bold text-slate-800">{modalAct.title}</h3>
+                                    <button onClick={() => setModalAct(null)} className="p-2 bg-slate-100 rounded-full">✕</button>
+                                </div>
+                                
+                                <div className="space-y-4 max-h-[70vh] overflow-y-auto">
+                                    <div className="bg-fjord-50 p-3 rounded-lg border border-fjord-100 text-sm text-fjord-800 italic">
+                                        "{modalAct.keyDetails}"
+                                    </div>
+
+                                    <div>
+                                        <h4 className="font-bold text-slate-700 mb-1">Descripción</h4>
+                                        <p className="text-slate-600 leading-relaxed">{modalAct.fullDescription}</p>
+                                    </div>
+
+                                    <div>
+                                        <h4 className="font-bold text-orange-600 mb-1">Consejo Pro</h4>
+                                        <p className="text-slate-600 text-sm bg-orange-50 p-2 rounded border border-orange-100">{modalAct.tips}</p>
+                                    </div>
+
+                                    {/* Action Buttons in Modal */}
+                                    <div className="grid grid-cols-1 gap-2 pt-4">
+                                        {modalAct.googleMapsUrl && (
+                                            <button 
+                                                onClick={() => window.open(modalAct.googleMapsUrl, '_blank')}
+                                                className="w-full py-3 bg-green-600 text-white rounded-xl font-bold shadow-md flex justify-center items-center gap-2"
+                                            >
+                                                🗺️ Ver Recorrido (Google Maps)
+                                            </button>
+                                        )}
+                                        {modalAct.ticketUrl && (
+                                            <button 
+                                                onClick={() => window.open(modalAct.ticketUrl, '_blank')}
+                                                className="w-full py-3 bg-fjord-600 text-white rounded-xl font-bold shadow-md flex justify-center items-center gap-2"
+                                            >
+                                                <Icons.Ticket /> Comprar Tickets Online
+                                            </button>
+                                        )}
+                                        {modalAct.instaTag && (
+                                            <button 
+                                                onClick={() => window.open(modalAct.instaTag, '_blank')}
+                                                className="w-full py-3 bg-gradient-to-r from-purple-500 via-pink-500 to-orange-500 text-white rounded-xl font-bold shadow-md flex justify-center items-center gap-2"
+                                            >
+                                                <Icons.Instagram /> Ver Fotos (Instagram)
+                                            </button>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>

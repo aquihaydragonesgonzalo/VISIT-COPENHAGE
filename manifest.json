@@ -1,0 +1,21 @@
+{
+  "name": "Guía Visita Flåm 2026",
+  "short_name": "Flåm 2026",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#f8fafc",
+  "theme_color": "#2A5B87",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEhcA0a_MFgQpkEks6XXvRI9ekfq5qrYfMtxOG8HuGchmFveZ0yYGSKmg1MXKNRAw8Snc-ZD5iHimhmGEv9YBd9jNhcoLoYAK7eVaxEab_NF3R3TXQcmCYtn5eFD34tQxs5j1yUiD9s0MKmdVTKi4iVZPC4AwCqhkntHp9vkeKC-Kj4q47VsePLnxWbY1_g/s2048/Gemini_Generated_Image_5e2y1u5e2y1u5e2y.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEhcA0a_MFgQpkEks6XXvRI9ekfq5qrYfMtxOG8HuGchmFveZ0yYGSKmg1MXKNRAw8Snc-ZD5iHimhmGEv9YBd9jNhcoLoYAK7eVaxEab_NF3R3TXQcmCYtn5eFD34tQxs5j1yUiD9s0MKmdVTKi4iVZPC4AwCqhkntHp9vkeKC-Kj4q47VsePLnxWbY1_g/s2048/Gemini_Generated_Image_5e2y1u5e2y1u5e2y.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
